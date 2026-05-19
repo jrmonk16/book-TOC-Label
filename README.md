@@ -3,9 +3,15 @@
 스캔 PDF에 **북마크(목차)** 와 **페이지 라벨**을 삽입하는 데스크탑 앱.  
 Gemini(클라우드) 또는 Ollama(로컬 LLM)를 사용해 목차를 자동 감지합니다.
 
-![screenshot](docs/screenshot.png)
+## 다운로드 (바로 설치)
 
-## 빠른 시작 (3단계)
+👉 **[Releases 페이지](https://github.com/jrmonk16/book-TOC-Label/releases)** 에서 최신 `.dmg` 파일 다운로드 → 더블클릭 → Applications 드래그
+
+> ⚠️ 서명되지 않은 앱이라 처음 열 때: **우클릭 → 열기** 로 실행
+
+---
+
+## 개발자용 빠른 시작 (3단계)
 
 ```bash
 # 1. 받기
