@@ -12,9 +12,10 @@ dist
 dist-ssr
 *.local
 
-# Secrets
+# Secrets — .env (로컬 키 포함) 는 제외, .env.production 은 커밋 허용
 .env
-.env.*
+.env.local
+.env.*.local
 
 # Python venv
 .venv/

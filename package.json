@@ -35,7 +35,17 @@
       "buildResources": "assets",
       "output": "release"
     },
-    "asar": true
+    "asar": true,
+    "extraResources": [
+      { "from": "install.command", "to": "../install.command" }
+    ],
+    "dmg": {
+      "contents": [
+        { "x": 130, "y": 220, "type": "file" },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" },
+        { "x": 130, "y": 380, "type": "file", "path": "install.command" }
+      ]
+    }
   },
   "dependencies": {
     "clsx": "^2.1.1",
