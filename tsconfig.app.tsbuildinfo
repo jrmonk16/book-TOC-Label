@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/coverupload.tsx","./src/components/offsetsuggestion.tsx","./src/components/pdfdropzone.tsx","./src/components/pdfpreview.tsx","./src/components/toceditor.tsx","./src/components/ui/button.tsx","./src/lib/pdf-generator.ts","./src/lib/pdf-utils.ts","./src/lib/utils.ts"],"version":"5.9.3"}
