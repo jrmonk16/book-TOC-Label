@@ -9,7 +9,7 @@ Gemini(클라우드) 또는 Ollama(로컬 LLM)를 사용해 목차를 자동 감
 
 ```bash
 # 1. 받기
-git clone https://github.com/YOUR_USERNAME/pdf-toc-app.git && cd pdf-toc-app
+git clone https://github.com/jrmonk16/book-TOC-Label.git && cd book-TOC-Label
 
 # 2. 설치
 npm install
