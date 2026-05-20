@@ -8,6 +8,7 @@ import { PdfPreview } from "@/components/PdfPreview";
 import { OffsetSuggestion } from "@/components/OffsetSuggestion";
 import { extractTextFromPdf, getPdfPageCount, extractExistingToc, type TocEntry } from "@/lib/pdf-utils";
 import { addTocToPdf } from "@/lib/pdf-generator";
+import { convertToPdfAWithGhostscript, findGhostscript, isElectron } from "@/lib/pdfa-converter";
 import { Toaster, toast } from "sonner";
 
 interface OffsetSuggestionData {
@@ -379,8 +380,35 @@ ${text}`;
     }
     setGenerating(true);
     try {
-      // addTocToPdf writes both Outlines (bookmarks) and /PageLabels when offset != 0
-      const pdfBuffer = await addTocToPdf(pdfBytes.slice().buffer, entries, [globalOffset], coverImage, pdfAMode);
+      const gsPath = pdfAMode && isElectron() ? findGhostscript() : null;
+      const useGs = !!gsPath;
+
+      // If gs is available we skip the metadata-only PDF/A markers here
+      // because gs will rewrite the document and add proper ones.
+      let pdfBuffer = await addTocToPdf(
+        pdfBytes.slice().buffer,
+        entries,
+        [globalOffset],
+        coverImage,
+        pdfAMode && !useGs
+      );
+
+      if (pdfAMode) {
+        if (useGs) {
+          toast.info("Ghostscript로 PDF/A 변환 중... (수십 초 소요될 수 있음)");
+          try {
+            pdfBuffer = await convertToPdfAWithGhostscript(pdfBuffer);
+          } catch (gsErr: any) {
+            console.error("Ghostscript error:", gsErr);
+            toast.warning(`Ghostscript 변환 실패 (${gsErr.message || gsErr}). 메타데이터만 추가하여 저장합니다.`);
+            pdfBuffer = await addTocToPdf(pdfBytes.slice().buffer, entries, [globalOffset], coverImage, true);
+          }
+        } else if (!isElectron()) {
+          toast.warning("브라우저 모드에서는 메타데이터만 추가됩니다. 진짜 PDF/A 변환은 .app 빌드에서만 가능합니다.");
+        } else {
+          toast.warning("Ghostscript가 없어 메타데이터만 추가합니다. 진짜 PDF/A 변환을 원하시면: brew install ghostscript");
+        }
+      }
 
       const blob = new Blob([pdfBuffer.buffer as ArrayBuffer], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
