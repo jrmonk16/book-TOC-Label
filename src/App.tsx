@@ -374,8 +374,8 @@ ${text}`;
 
   const handleGenerate = useCallback(async () => {
     if (!pdfBytes) return;
-    if (entries.length === 0 && !coverImage && globalOffset === 0) {
-      toast.error("목차 항목, 표지 이미지, 또는 페이지 오프셋 중 하나 이상 설정해주세요.");
+    if (entries.length === 0 && !coverImage && globalOffset === 0 && !pdfAMode && hasExistingToc === 0) {
+      toast.error("변경할 내용이 없습니다. 목차/표지/오프셋/PDF·A 중 하나 이상 설정하거나, 기존 목차가 포함된 PDF를 사용해주세요.");
       return;
     }
     setGenerating(true);
@@ -424,8 +424,10 @@ ${text}`;
 
       const parts: string[] = [];
       if (entries.length > 0) parts.push("북마크");
+      else if (hasExistingToc > 0) parts.push("기존 목차 유지");
       if (globalOffset !== 0) parts.push("페이지 라벨");
       if (coverImage) parts.push("표지");
+      if (pdfAMode) parts.push(gsPath ? "PDF/A 변환" : "PDF/A 마커");
       toast.success(`PDF 생성 완료! (${parts.join(" + ") || "저장"})`);
     } catch (err: any) {
       console.error(err);
@@ -433,7 +435,7 @@ ${text}`;
     } finally {
       setGenerating(false);
     }
-  }, [pdfBytes, entries, file, coverImage, globalOffset, pdfAMode]);
+  }, [pdfBytes, entries, file, coverImage, globalOffset, pdfAMode, hasExistingToc]);
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -489,7 +491,7 @@ ${text}`;
               </Button>
               <Button
                 onClick={handleGenerate}
-                disabled={generating || (entries.length === 0 && !coverImage && globalOffset === 0)}
+                disabled={generating || (entries.length === 0 && !coverImage && globalOffset === 0 && !pdfAMode && hasExistingToc === 0)}
                 variant="outline"
                 size="sm"
                 style={{ fontSize: 13 }}
