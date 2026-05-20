@@ -51,6 +51,9 @@ export default function App() {
   // Global Page Offset
   const [globalOffset, setGlobalOffset] = useState(0);
 
+  // PDF/A output toggle
+  const [pdfAMode, setPdfAMode] = useState(false);
+
   // Offset suggestion state
   const [offsetSuggestion, setOffsetSuggestion] = useState<OffsetSuggestionData | null>(null);
   const [analyzingOffset, setAnalyzingOffset] = useState(false);
@@ -377,14 +380,15 @@ ${text}`;
     setGenerating(true);
     try {
       // addTocToPdf writes both Outlines (bookmarks) and /PageLabels when offset != 0
-      const pdfBuffer = await addTocToPdf(pdfBytes.slice().buffer, entries, [globalOffset], coverImage);
+      const pdfBuffer = await addTocToPdf(pdfBytes.slice().buffer, entries, [globalOffset], coverImage, pdfAMode);
 
       const blob = new Blob([pdfBuffer.buffer as ArrayBuffer], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      const suffix = entries.length > 0
-        ? "_목차.pdf"
-        : globalOffset !== 0 ? "_라벨.pdf" : "_목차.pdf";
+      const base = entries.length > 0
+        ? "_목차"
+        : globalOffset !== 0 ? "_라벨" : "_목차";
+      const suffix = pdfAMode ? `${base}_PDFA.pdf` : `${base}.pdf`;
       a.href = url;
       a.download = file?.name?.replace(".pdf", suffix) || "output.pdf";
       a.click();
@@ -401,7 +405,7 @@ ${text}`;
     } finally {
       setGenerating(false);
     }
-  }, [pdfBytes, entries, file, coverImage, globalOffset]);
+  }, [pdfBytes, entries, file, coverImage, globalOffset, pdfAMode]);
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -433,7 +437,19 @@ ${text}`;
             </div>
           </div>
           {pdfBytes && (
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <label
+                title="PDF/A-2B 마커(XMP, OutputIntent)를 추가합니다. 장기 보존용 표준이며, Adobe/미리보기 등에서 PDF/A로 인식됩니다."
+                style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--color-foreground)", cursor: "pointer", userSelect: "none" }}
+              >
+                <input
+                  type="checkbox"
+                  checked={pdfAMode}
+                  onChange={e => setPdfAMode(e.target.checked)}
+                  style={{ width: 14, height: 14, cursor: "pointer" }}
+                />
+                PDF/A
+              </label>
               <Button
                 onClick={() => { setShowLlmModal(true); }}
                 disabled={parsing}
@@ -451,7 +467,7 @@ ${text}`;
                 style={{ fontSize: 13 }}
               >
                 {generating ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} /> : <Download style={{ width: 14, height: 14 }} />}
-                PDF 생성 & 저장
+                {pdfAMode ? "PDF/A 생성 & 저장" : "PDF 생성 & 저장"}
               </Button>
             </div>
           )}

@@ -1,5 +1,76 @@
-import { PDFDocument, PDFName, PDFDict, PDFArray, PDFRef, PDFString, PDFHexString, PDFNumber } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFDict, PDFArray, PDFRef, PDFString, PDFHexString, PDFNumber, PDFRawStream } from 'pdf-lib';
 import { type TocEntry } from './pdf-utils';
+
+/**
+ * Adds PDF/A-2B identification markers to the document.
+ *
+ * Limitations:
+ *  - This adds XMP metadata (pdfaid:part=2, conformance=B) and an OutputIntent.
+ *  - It does NOT embed an sRGB ICC profile (would require ~3KB bundled binary),
+ *    so strict validators (veraPDF) will reject it.
+ *  - Most PDF viewers (Adobe, Preview, Foxit) will however identify and display
+ *    the file as PDF/A.
+ *  - Source PDFs containing transparency, encryption, or unembedded fonts
+ *    cannot be made into truly compliant PDF/A by metadata alone.
+ */
+function applyPdfAMarkers(pdfDoc: PDFDocument) {
+  const context = pdfDoc.context;
+  const catalog = pdfDoc.catalog;
+  const now = new Date();
+
+  pdfDoc.setProducer('PDF TOC LLM');
+  pdfDoc.setCreator('PDF TOC LLM');
+  if (!pdfDoc.getCreationDate()) pdfDoc.setCreationDate(now);
+  pdfDoc.setModificationDate(now);
+
+  const isoDate = now.toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const title = pdfDoc.getTitle() || '';
+  const escapeXml = (s: string) => s
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+
+  const xmp = `<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="PDF TOC LLM">
+ <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description rdf:about=""
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:pdf="http://ns.adobe.com/pdf/1.3/"
+    xmlns:xmp="http://ns.adobe.com/xap/1.0/"
+    xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/">
+   <dc:format>application/pdf</dc:format>
+   <dc:title><rdf:Alt><rdf:li xml:lang="x-default">${escapeXml(title)}</rdf:li></rdf:Alt></dc:title>
+   <pdf:Producer>PDF TOC LLM</pdf:Producer>
+   <xmp:CreatorTool>PDF TOC LLM</xmp:CreatorTool>
+   <xmp:CreateDate>${isoDate}</xmp:CreateDate>
+   <xmp:ModifyDate>${isoDate}</xmp:ModifyDate>
+   <pdfaid:part>2</pdfaid:part>
+   <pdfaid:conformance>B</pdfaid:conformance>
+  </rdf:Description>
+ </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end="w"?>`;
+
+  const xmpBytes = new TextEncoder().encode(xmp);
+  const metadataDict = context.obj({
+    Type: PDFName.of('Metadata'),
+    Subtype: PDFName.of('XML'),
+    Length: PDFNumber.of(xmpBytes.length),
+  }) as PDFDict;
+  const metadataStream = PDFRawStream.of(metadataDict, xmpBytes);
+  const metadataRef = context.register(metadataStream);
+  catalog.set(PDFName.of('Metadata'), metadataRef);
+
+  // Minimal OutputIntent (no embedded ICC profile).
+  const outputIntent = context.obj({
+    Type: PDFName.of('OutputIntent'),
+    S: PDFName.of('GTS_PDFA1'),
+    OutputConditionIdentifier: PDFString.of('sRGB'),
+    Info: PDFString.of('sRGB IEC61966-2.1'),
+  });
+  catalog.set(PDFName.of('OutputIntents'), context.obj([outputIntent]));
+
+  // PDF/A forbids the /MarkInfo absence when structured; leave as-is for scans.
+}
 
 /**
  * Writes a /PageLabels dictionary to the PDF catalog.
@@ -42,7 +113,8 @@ export async function addTocToPdf(
   buffer: ArrayBuffer,
   entries: TocEntry[],
   pageOffsets: number[] = [0],
-  coverImage?: string | null
+  coverImage?: string | null,
+  pdfA: boolean = false
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.load(buffer);
   
@@ -189,5 +261,9 @@ export async function addTocToPdf(
     catalog.set(PDFName.of('Outlines'), outlinesDictRef);
   }
   
+  if (pdfA) {
+    applyPdfAMarkers(pdfDoc);
+  }
+
   return await pdfDoc.save();
 }
